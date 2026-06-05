@@ -1,0 +1,124 @@
+<div id="mode-modal" class="modal-overlay">
+    <div class="modal-box">
+        <h2>GAME MODES</h2>
+
+        <!-- STEP 1 -->
+        <div id="step-main">
+            <div class="mode-option" onclick="selectMain('Single')">
+                <div class="mode-info">
+                    <h3><i class="fa-solid fa-user"></i> SINGLE PLAY</h3>
+                    <p>Play solo - VS Computer, Classic, Sprint, Blitz</p>
+                </div>
+                <i class="fa-solid fa-chevron-right"></i>
+            </div>
+            <div class="mode-option" onclick="selectMain('Multi')">
+                <div class="mode-info">
+                    <h3><i class="fa-solid fa-users"></i> MULTI PLAY</h3>
+                    <p>Online real-time 1:1 match</p>
+                </div>
+                <i class="fa-solid fa-chevron-right"></i>
+            </div>
+            <div class="modal-foot">
+                <button class="btn-cancel" onclick="closeModeSelect()">CANCEL</button>
+            </div>
+        </div>
+
+        <!-- STEP 2 : Single -->
+        <div id="step-single" style="display:none;">
+            <div class="mode-option" id="opt-vs">
+                <div class="mode-info">
+                    <h3><i class="fa-solid fa-robot"></i> VS COMPUTER</h3>
+                    <p>Real-time battle — win to save your record</p>
+                </div>
+                <div class="diff-selector">
+                    <span class="diff-btn active" onclick="setDiff('Easy', event)">Easy</span>
+                    <span class="diff-btn" onclick="setDiff('Normal', event)">Normal</span>
+                    <span class="diff-btn" onclick="setDiff('Hard', event)">Hard</span>
+                </div>
+            </div>
+            <div class="mode-option" onclick="selectSubMode('Classic')">
+                <div class="mode-info"><h3><i class="fa-solid fa-gamepad"></i> CLASSIC</h3><p>Endurance — how long can you last?</p></div>
+            </div>
+            <div class="mode-option" onclick="selectSubMode('Sprint')">
+                <div class="mode-info"><h3><i class="fa-solid fa-stopwatch"></i> SPRINT</h3><p>Clear 40 lines as fast as possible</p></div>
+            </div>
+            <div class="mode-option" onclick="selectSubMode('Blitz')">
+                <div class="mode-info"><h3><i class="fa-solid fa-clock"></i> BLITZ</h3><p>Score as much as possible in 120s</p></div>
+            </div>
+            <div class="modal-foot">
+                <button class="btn-play gradient-green" onclick="triggerStart()">START</button>
+                <button class="btn-cancel" onclick="backToMain()">BACK</button>
+            </div>
+        </div>
+
+        <!-- STEP 2 : Multi (matchmaking) -->
+        <div id="step-multi" style="display:none;">
+            <div class="matchmaking">
+                <i class="fa-solid fa-circle-notch fa-spin mm-spin"></i>
+                <h3 id="mm-status">Searching for opponent...</h3>
+                <p id="mm-sub">상대를 찾는 중입니다. 다른 창에서도 MULTI PLAY를 시작하면 매칭됩니다.</p>
+            </div>
+            <div class="modal-foot">
+                <button class="btn-cancel" onclick="cancelMatch()">CANCEL</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 게임오버 모달 -->
+<div id="over-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-box over-box">
+        <div class="over-icon" style="color:var(--neon-blue);"><i class="fa-solid fa-flag-checkered"></i></div>
+        <h2 id="over-title">GAME OVER</h2>
+
+        <div class="over-stats">
+            <div class="over-stat"><span class="lbl">SCORE</span><span id="over-score" class="val">0</span></div>
+            <div class="over-stat"><span class="lbl">LINES</span><span id="over-lines" class="val">0</span></div>
+            <!-- 클리어 시간 (VS Computer 승리 / Sprint 클리어 시 표시) -->
+            <div class="over-stat" id="over-time-stat" style="display:none;">
+                <span class="lbl">TIME</span>
+                <span id="over-time-val" class="val time-highlight">--:--</span>
+            </div>
+        </div>
+
+        <!-- 기록 저장 영역 (canSave일 때만 보임) -->
+        <div id="over-name-area" style="display:none;">
+            <p class="over-hint">닉네임을 입력하고 기록을 등록하세요</p>
+            <input id="over-name" class="over-input" type="text" maxlength="12" placeholder="NICKNAME" />
+        </div>
+
+        <div class="modal-foot">
+            <button id="over-save-btn" class="btn-play gradient-green" onclick="confirmGameOver()" style="display:none;">SAVE RECORD</button>
+            <button class="btn-cancel" onclick="skipGameOver()">
+                <span id="over-skip-label">SKIP</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Blitz 카운트다운 타이머 (화면 상단 고정) -->
+<div id="top-timer" style="display:none;">
+    <i class="fa-solid fa-clock"></i> TIME REMAINING: <span id="timer-val">120</span>s
+</div>
+
+<div id="lb-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-box">
+        <h2>LEADERBOARD</h2>
+        <div class="lb-tabs">
+            <span class="lb-tab active" onclick="switchLbTab('VS Computer', event)">VS CPU</span>
+            <span class="lb-tab" onclick="switchLbTab('Classic', event)">CLASSIC</span>
+            <span class="lb-tab" onclick="switchLbTab('Sprint', event)">SPRINT</span>
+            <span class="lb-tab" onclick="switchLbTab('Blitz', event)">BLITZ</span>
+        </div>
+        <!-- VS CPU 난이도 서브탭 (VS Computer 탭 선택 시만 표시) -->
+        <div id="lb-vs-subtabs" class="lb-subtabs" style="display:none;">
+            <span class="lb-subtab active" onclick="switchVsSubTab('VS Computer (Easy)', event)">Easy</span>
+            <span class="lb-subtab" onclick="switchVsSubTab('VS Computer (Normal)', event)">Normal</span>
+            <span class="lb-subtab" onclick="switchVsSubTab('VS Computer (Hard)', event)">Hard</span>
+        </div>
+        <div id="lb-list" class="lb-list"></div>
+        <div class="modal-foot">
+            <button class="btn-cancel" onclick="document.getElementById('lb-modal').style.display='none'">CLOSE</button>
+        </div>
+    </div>
+</div>

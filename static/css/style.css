@@ -1,0 +1,185 @@
+:root {
+    --bg-dark: #070913;
+    --panel-bg: rgba(16, 20, 38, 0.5);
+    --neon-blue: #00f5ff;
+    --neon-green: #00ff88;
+    --neon-purple: #bd00ff;
+    --neon-red: #ff3838;
+    --text-muted: #626d85;
+}
+body { background-color: var(--bg-dark); color: #fff; font-family: 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 0; display: flex; height: 100vh; overflow: hidden; }
+.danger-alert { animation: dangerFlash 1.2s infinite alternate ease-in-out; }
+@keyframes dangerFlash {
+    0% { box-shadow: inset 0 0 30px rgba(255, 0, 0, 0); }
+    100% { box-shadow: inset 0 0 100px rgba(255, 56, 56, 0.6); background: rgba(255, 0, 0, 0.05); }
+}
+#sidebar { width: 100px; background: #04050a; display: flex; flex-direction: column; align-items: center; border-right: 1px solid rgba(255, 255, 255, 0.03); padding-top: 30px; }
+#sidebar .logo { font-size: 32px; color: var(--neon-blue); margin-bottom: 50px; text-shadow: 0 0 15px var(--neon-blue); }
+.menu-item { width: 100%; text-align: center; color: var(--text-muted); padding: 22px 0; cursor: pointer; font-size: 11px; display: flex; flex-direction: column; gap: 8px; letter-spacing: 1px; font-weight: bold; transition: 0.2s; }
+.menu-item i { font-size: 22px; }
+.menu-item:hover, .menu-item.active { color: #fff; background: rgba(0, 245, 255, 0.03); border-left: 3px solid var(--neon-blue); }
+.menu-item:last-child { margin-top: auto; margin-bottom: 30px; border-left: none; }
+.menu-item:last-child:hover { background: rgba(255,255,255,0.03); color: #fff; }
+#main-content { flex: 1; display: flex; justify-content: center; align-items: center; gap: 80px; background: radial-gradient(circle at center, #11152c 0%, #060812 100%); position: relative; transition: all 0.3s ease; }
+#main-content.vs-mode { gap: 120px; }
+.player-panel { background: rgba(10, 25, 50, 0.45); padding: 30px; border-radius: 24px; border: 1px solid rgba(0, 245, 255, 0.35); backdrop-filter: blur(20px); box-shadow: 0 0 35px rgba(0, 245, 255, 0.15), 0 25px 60px rgba(0,0,0,0.7); transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+#ai-panel { background: rgba(50, 15, 20, 0.45) !important; border: 1px solid rgba(255, 56, 56, 0.35) !important; box-shadow: 0 0 35px rgba(255, 56, 56, 0.15), 0 25px 60px rgba(0,0,0,0.7) !important; }
+.player-panel.hidden-mode { display: none !important; }
+.panel-title { font-size: 14px; letter-spacing: 3px; color: #a4b3d6; margin-top: 0; text-align: center; font-weight: 700; }
+#ai-panel .panel-title { color: #ff9da6; }
+.game-area-wrapper { display: flex; align-items: flex-start; gap: 20px; margin: 25px 0; }
+canvas { background: #030407; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); }
+.next-box { width: 85px; text-align: center; background: rgba(0,0,0,0.4); border-radius: 10px; padding: 8px; border: 1px solid rgba(255,255,255,0.04); }
+.next-box p { margin: 0 0 8px 0; font-size: 11px; color: var(--text-muted); font-weight: 800; letter-spacing: 1px; }
+.stat-row { display: flex; justify-content: center; gap: 10px; margin-top: 20px; }
+.stat-block { text-align: left; display: flex; align-items: center; gap: 5px; }
+.stat-block .label { font-size: 13px; color: var(--neon-green); font-weight: 700; letter-spacing: 1px; }
+.stat-block .value { font-size: 24px; font-weight: 800; color: #fff; font-family: monospace; }
+.ai-stats .stat-block .label { color: var(--neon-red); }
+.modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(2, 3, 7, 0.8); backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; z-index: 999; }
+.modal-box { background: rgba(13, 19, 36, 0.95); width: 440px; padding: 40px; border-radius: 20px; border: 2px solid rgba(0, 245, 255, 0.3); box-shadow: 0 0 50px rgba(0, 245, 255, 0.15); }
+.modal-box h2 { text-align: center; margin-top: 0; font-size: 18px; color: #fff; letter-spacing: 2px; font-weight: 700; margin-bottom: 30px; }
+.mode-option { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 16px 20px; border-radius: 12px; margin: 12px 0; cursor: pointer; transition: all 0.2s; display: flex; justify-content: space-between; align-items: center; }
+.mode-option:hover, .mode-option.selected { background: rgba(0, 245, 255, 0.05); border-color: var(--neon-blue); box-shadow: 0 0 15px rgba(0, 245, 255, 0.1); }
+.mode-option > i.fa-chevron-right { color: var(--text-muted); font-size: 13px; }
+.mode-info h3 { margin: 0 0 4px 0; font-size: 14px; letter-spacing: 0.5px; font-weight: 600; color: #fff; }
+.mode-info p { margin: 0; font-size: 11px; color: var(--text-muted); }
+.diff-selector { display: flex; gap: 2px; background: #0a0e1a; padding: 3px; border-radius: 6px; }
+.diff-btn { padding: 4px 10px; font-size: 11px; color: var(--text-muted); border-radius: 4px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+.diff-btn.active { background: var(--neon-blue); color: #000; }
+.modal-foot { display: flex; gap: 12px; margin-top: 35px; }
+.btn-play { flex: 1; border: none; padding: 15px; font-weight: bold; border-radius: 8px; cursor: pointer; color:#000; letter-spacing: 1px; font-size: 13px; }
+.gradient-green { background: linear-gradient(135deg, #00ff88 0%, #00b366 100%); }
+.btn-cancel { background: #1c2135; border: 1px solid rgba(255,255,255,0.05); padding: 15px 24px; color: #fff; border-radius: 8px; cursor: pointer; font-size: 13px; }
+#top-timer { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.6); padding: 10px 24px; border-radius: 10px; color: var(--neon-blue); font-weight: 700; letter-spacing: 1px; z-index: 50; }
+
+/* 멀티플레이 매치메이킹 화면 */
+.matchmaking { text-align: center; padding: 30px 10px 10px; }
+.matchmaking .mm-spin { font-size: 46px; color: var(--neon-blue); text-shadow: 0 0 20px var(--neon-blue); margin-bottom: 20px; }
+.matchmaking h3 { margin: 0 0 10px 0; font-size: 18px; letter-spacing: 1px; color: #fff; }
+.matchmaking p { margin: 0; font-size: 12px; color: var(--text-muted); line-height: 1.6; }
+
+.lb-list { max-height: 360px; overflow-y: auto; }
+.lb-row { display: flex; justify-content: space-between; padding: 10px 14px; margin: 6px 0;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 8px; font-size: 13px; }
+.lb-row .rank { color: var(--neon-blue); font-weight: 800; width: 30px; }
+.lb-row .name { flex: 1; color: #fff; }
+.lb-row .mode { color: var(--text-muted); font-size: 11px; margin-right: 12px; }
+.lb-row .score { color: var(--neon-green); font-weight: 800; font-family: monospace; }
+.lb-empty { text-align: center; color: var(--text-muted); padding: 30px; }
+
+.over-box { text-align: center; width: 400px; }
+.over-icon { font-size: 52px; color: var(--neon-blue); text-shadow: 0 0 25px var(--neon-blue); margin-bottom: 14px; }
+#over-title { font-size: 26px; letter-spacing: 3px; margin-bottom: 24px; }
+.over-stats { display: flex; justify-content: center; gap: 16px; margin-bottom: 24px; }
+.over-stat { flex: 1; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px; padding: 16px; }
+.over-stat .lbl { display: block; font-size: 11px; color: var(--text-muted); letter-spacing: 2px; margin-bottom: 8px; }
+.over-stat .val { display: block; font-size: 30px; font-weight: 800; font-family: monospace; color: var(--neon-green); }
+.over-hint { font-size: 12px; color: var(--text-muted); margin: 0 0 12px 0; }
+.over-input { width: 100%; box-sizing: border-box; padding: 14px; border-radius: 10px;
+    background: #0a0e1a; border: 1px solid rgba(0,245,255,0.3); color: #fff; font-size: 16px;
+    text-align: center; letter-spacing: 2px; font-weight: 700; outline: none; }
+.over-input:focus { border-color: var(--neon-blue); box-shadow: 0 0 15px rgba(0,245,255,0.2); }
+
+.game-area-wrapper { align-items: flex-start; justify-content: center; }
+.next-box { width: 90px; display: flex; flex-direction: column; align-items: center; }
+.next-box canvas { display: block; margin: 0 auto; }
+
+.lb-tabs { display: flex; gap: 4px; margin-bottom: 16px; background: #1a2138; padding: 4px; border-radius: 8px; }
+.lb-tab { flex: 1; text-align: center; padding: 8px 4px; font-size: 11px; font-weight: 700;
+    color: var(--text-muted); border-radius: 6px; cursor: pointer; transition: 0.2s; letter-spacing: 0.5px; }
+.lb-tab:hover { color: #fff; }
+.lb-tab.active { background: var(--neon-blue); color: #000; }
+
+
+/* ===== 인게임 타이머 (VS Computer, Sprint) ===== */
+#ingame-timer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 7px 18px;
+    background: rgba(0, 245, 255, 0.06);
+    border: 1px solid rgba(0, 245, 255, 0.2);
+    border-radius: 10px;
+}
+#ingame-timer-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+}
+#elapsed-val {
+    font-size: 22px;
+    font-weight: 800;
+    font-family: monospace;
+    color: var(--neon-blue);
+    text-shadow: 0 0 10px rgba(0,245,255,0.5);
+    letter-spacing: 2px;
+}
+
+/* ===== Sprint 남은 줄 ===== */
+#sprint-lines-left {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 10px;
+    padding: 7px 18px;
+    background: rgba(0, 255, 136, 0.06);
+    border: 1px solid rgba(0, 255, 136, 0.2);
+    border-radius: 10px;
+}
+.sll-label {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: var(--text-muted);
+}
+.sll-val {
+    font-size: 22px;
+    font-weight: 800;
+    font-family: monospace;
+    color: var(--neon-green);
+    text-shadow: 0 0 10px rgba(0,255,136,0.5);
+    letter-spacing: 2px;
+}
+
+/* ===== 게임오버 클리어 시간 강조 ===== */
+.time-highlight {
+    color: var(--neon-blue) !important;
+    text-shadow: 0 0 12px rgba(0,245,255,0.5);
+}
+
+/* ===== VS CPU 난이도 서브탭 ===== */
+.lb-subtabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 12px;
+    padding: 3px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 7px;
+    border: 1px solid rgba(255,255,255,0.04);
+}
+.lb-subtab {
+    flex: 1;
+    text-align: center;
+    padding: 6px 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-muted);
+    border-radius: 5px;
+    cursor: pointer;
+    transition: 0.2s;
+    letter-spacing: 0.5px;
+}
+.lb-subtab:hover { color: #fff; }
+.lb-subtab.active { background: rgba(0,245,255,0.15); color: var(--neon-blue); border: 1px solid rgba(0,245,255,0.3); }
+
+/* 리더보드 시간 컬럼 */
+.lb-time { color: var(--neon-blue) !important; font-family: monospace; font-weight: 800; }
+
+/* 게임오버 Victory 색상 */
+.over-icon { font-size: 52px; text-shadow: 0 0 25px currentColor; margin-bottom: 14px; }

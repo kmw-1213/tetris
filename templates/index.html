@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Tetris Full-Stack System - Modern Neon UI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+</head>
+<body>
+
+    {% include 'sidebar.html' %}
+
+    <div id="main-content">
+        <div class="player-panel">
+            <h2 class="panel-title">HUMAN PLAYER</h2>
+
+            <!-- 인게임 타이머 (VS Computer, Sprint 경과시간) -->
+            <div id="ingame-timer" style="display:none;">
+                <span id="ingame-timer-label">TIME</span>
+                <span id="elapsed-val">00:00</span>
+            </div>
+
+            <!-- Sprint 남은 줄 표시 -->
+            <div id="sprint-lines-left" style="display:none;">
+                <span class="sll-label">LINES LEFT</span>
+                <span id="sll-val" class="sll-val">40</span>
+            </div>
+
+            <div class="game-area-wrapper">
+                <canvas id="playerCanvas" width="300" height="600"></canvas>
+                <div class="next-box"><p>NEXT</p><canvas id="pNextCanvas" width="80" height="240"></canvas></div>
+            </div>
+            <div class="stat-row">
+                <div class="stat-block"><div class="label">SCORE:</div><div id="p-score" class="value">0</div></div>
+                <div class="stat-block"><div class="label">LINES:</div><div id="p-lines" class="value">0</div></div>
+                <div class="stat-block"><div class="label">LEVEL:</div><div id="p-level" class="value">1</div></div>
+            </div>
+        </div>
+
+        <div class="player-panel hidden-mode" id="ai-panel">
+            <h2 class="panel-title" id="ai-title">AI BOT - INACTIVE</h2>
+            <div class="game-area-wrapper">
+                <canvas id="aiCanvas" width="300" height="600"></canvas>
+                <div class="next-box"><p>NEXT</p><canvas id="aNextCanvas" width="80" height="80"></canvas></div>
+            </div>
+            <div class="stat-row ai-stats">
+                <div class="stat-block"><div class="label">SCORE:</div><div id="a-score" class="value">0</div></div>
+                <div class="stat-block"><div class="label">LINES:</div><div id="a-lines" class="value">0</div></div>
+                <div class="stat-block"><div class="label">LEVEL:</div><div id="a-level" class="value">1</div></div>
+            </div>
+        </div>
+    </div>
+
+    {% include 'modals.html' %}
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="/static/js/constants.js"></script>
+    <script src="/static/js/render.js"></script>
+    <script src="/static/js/api_client.js"></script>
+    <script src="/static/js/multiplayer.js"></script>
+    <script src="/static/js/game.js"></script>
+</body>
+</html>
