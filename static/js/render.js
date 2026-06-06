@@ -124,7 +124,7 @@ function drawGrid(ctx, field, currentBlock, nextBlock, nextCtx, effectsArr) {
 function renderLoop() {
     pEffects = pEffects.filter(eff => eff.life > 0);
     aEffects = aEffects.filter(eff => eff.life > 0);
-    drawGrid(pCtx, pField, pBlock, pNextBlock, pNextCtx, pEffects);
-    if (currentMode === 'VS Computer') drawGrid(aCtx, aField, aBlock, aNextBlock, aNextCtx, aEffects);
+    drawGrid(pCtx, pField, pBlock, pNextQueue, pNextCtx, pEffects);
+    if (currentMode === 'VS Computer') drawGrid(aCtx, aField, aBlock, aNextQueue, aNextCtx, aEffects);
     if(gameActive) requestAnimationFrame(renderLoop);
 }

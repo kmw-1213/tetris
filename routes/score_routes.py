@@ -32,7 +32,7 @@ def leaderboard():
     conn = get_connection()
 
     # Sprint/VS Computer 등 clear_time이 있는 모드는 시간 오름차순 우선
-    time_modes = ('Sprint',)
+    time_modes = ('Sprint', 'VS Computer (Easy)', 'VS Computer (Normal)', 'VS Computer (Hard)', 'VS Computer (Extreme)')
     if mode in time_modes:
         order = "clear_time ASC, score DESC"
     else:

@@ -21,7 +21,7 @@ body { background-color: var(--bg-dark); color: #fff; font-family: 'Segoe UI', s
 .menu-item:last-child { margin-top: auto; margin-bottom: 30px; border-left: none; }
 .menu-item:last-child:hover { background: rgba(255,255,255,0.03); color: #fff; }
 #main-content { flex: 1; display: flex; justify-content: center; align-items: center; gap: 80px; background: radial-gradient(circle at center, #11152c 0%, #060812 100%); position: relative; transition: all 0.3s ease; }
-#main-content.vs-mode { gap: 120px; }
+#main-content.vs-mode { gap: 160px; }
 .player-panel { background: rgba(10, 25, 50, 0.45); padding: 30px; border-radius: 24px; border: 1px solid rgba(0, 245, 255, 0.35); backdrop-filter: blur(20px); box-shadow: 0 0 35px rgba(0, 245, 255, 0.15), 0 25px 60px rgba(0,0,0,0.7); transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
 #ai-panel { background: rgba(50, 15, 20, 0.45) !important; border: 1px solid rgba(255, 56, 56, 0.35) !important; box-shadow: 0 0 35px rgba(255, 56, 56, 0.15), 0 25px 60px rgba(0,0,0,0.7) !important; }
 .player-panel.hidden-mode { display: none !important; }
@@ -47,6 +47,10 @@ canvas { background: #030407; border-radius: 12px; border: 1px solid rgba(255,25
 .diff-selector { display: flex; gap: 2px; background: #0a0e1a; padding: 3px; border-radius: 6px; }
 .diff-btn { padding: 4px 10px; font-size: 11px; color: var(--text-muted); border-radius: 4px; font-weight: 700; cursor: pointer; transition: 0.2s; }
 .diff-btn.active { background: var(--neon-blue); color: #000; }
+.diff-btn.extreme-btn { color: #ff4444; }
+.diff-btn.extreme-btn.active { background: linear-gradient(135deg, #ff2200, #ff6600); color: #fff; box-shadow: 0 0 8px #ff4400aa; }
+.extreme-tab { color: #ff4444 !important; }
+.extreme-tab.active { background: linear-gradient(135deg, #ff2200, #ff6600) !important; color: #fff !important; }
 .modal-foot { display: flex; gap: 12px; margin-top: 35px; }
 .btn-play { flex: 1; border: none; padding: 15px; font-weight: bold; border-radius: 8px; cursor: pointer; color:#000; letter-spacing: 1px; font-size: 13px; }
 .gradient-green { background: linear-gradient(135deg, #00ff88 0%, #00b366 100%); }

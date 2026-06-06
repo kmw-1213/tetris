@@ -1,14 +1,18 @@
 async function askAIBackend() {
     if (!gameActive || currentMode !== 'VS Computer') return;
+    let nextType = aNextQueue.length > 0 ? aNextQueue[0].type : null;
     let res = await fetch('/api/ai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ field: aField, type: aBlock.type,
+                               next_type: nextType,
                                difficulty: currentDiff, error_chance: errorChance })
     });
     let result = await res.json();
     aiTargetX = result.target_x;
     aiTargetRot = result.target_rot;
+    aiReady = true;
+    return result;
 }
 
 async function submitScore(mode, score, lines, clearTime) {

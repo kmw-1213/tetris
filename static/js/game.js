@@ -10,7 +10,7 @@ let gameActive = false;
 let mainMode = 'Single';
 let currentMode = 'VS Computer';
 let currentDiff = 'Easy', errorChance = 0.15;
-let aiTargetX = 3, aiTargetRot = 0, blitzTimer = 120, timerInterval;
+let aiTargetX = 3, aiTargetRot = 0, aiReady = false, blitzTimer = 120, timerInterval;
 let pTimeoutId, aiTimeoutId;
 let pEffects = [], aEffects = [];
 
@@ -191,6 +191,7 @@ function initGame() {
     pField = Array(20).fill().map(()=>Array(10).fill(0));
     aField = Array(20).fill().map(()=>Array(10).fill(0));
     pScore = 0; pLines = 0; pLevel = 1; aScore = 0; aLines = 0; blitzTimer = 120;
+    aiTargetX = 3; aiTargetRot = 0; aiReady = false;
     pEffects = []; aEffects = [];
     pBag = []; aBag = [];
     gameActive = true;
@@ -215,7 +216,7 @@ function initGame() {
         aiPanel.classList.remove('hidden-mode');
         document.getElementById('main-content').classList.add('vs-mode');
         document.getElementById('ai-title').innerText = `AI BOT - ${currentDiff.toUpperCase()}`;
-        errorChance = currentDiff === 'Easy' ? 0.15 : currentDiff === 'Hard' ? 0.01 : 0.05;
+        errorChance = currentDiff === 'Easy' ? 0.01 : currentDiff === 'Normal' ? 0.003 : currentDiff === 'Hard' ? 0.0005 : 0.0;
         aNextQueue = []; fillQueue(aNextQueue, aBag);
         aBlock = aNextQueue.shift(); fillQueue(aNextQueue, aBag);
         askAIBackend();
@@ -285,14 +286,28 @@ function isTopOut(field) {
 }
 
 /* ===== 낙하 속도 =====
-   Sprint / Blitz 는 고정 500ms (레벨·높이 무관)
-   VS Computer / Classic 은 레벨+높이 기반 가변 속도
+   Sprint / Blitz 는 고정 500ms
+   VS Computer / Multi 는 레벨+높이 기반 + 점수차 패널티
 */
 function getDropSpeed(isAi) {
     if (currentMode === 'Blitz' || currentMode === 'Sprint') return 500;
     let h = isAi ? getFieldHeight(aField) : getFieldHeight(pField);
     let levelSpeed = Math.max(100, 800 - (pLevel * 70));
-    return Math.max(50, levelSpeed - (h * 25));
+    let base = Math.max(50, levelSpeed - (h * 25));
+
+    // VS Computer / Multi: 점수차 패널티 (점수가 낮은 쪽 블록이 빨리 내려옴)
+    // 100점 차이마다 5%씩 빠르게, 최대 60% 가속
+    if (currentMode === 'VS Computer' || currentMode === 'Multi') {
+        let myScore  = isAi ? aScore : pScore;
+        let oppScore = isAi ? pScore  : aScore;
+        let gap = oppScore - myScore; // 내가 뒤처질수록 양수
+        if (gap > 0) {
+            // 100점마다 5% 가속, 최대 60% 가속
+            let penalty = Math.min(0.6, Math.floor(gap / 100) * 0.05);
+            base = Math.max(50, Math.round(base * (1 - penalty)));
+        }
+    }
+    return base;
 }
 
 /* ===== 플레이어 블록 잠금 ===== */
@@ -336,6 +351,7 @@ function runPlayerTick() {
 }
 
 /* ===== AI 틱 ===== */
+
 function lockAiBlock() {
     if (!gameActive) return;
     freezeBlock(aBlock, aField);
@@ -347,6 +363,7 @@ function lockAiBlock() {
     }
     aBlock = aNextQueue.shift(); fillQueue(aNextQueue, aBag);
     if (checkCollide(aBlock, aField)) { endGame("AI DEFEATED!"); return; }
+    aiReady = false;
     askAIBackend();
 }
 
@@ -354,60 +371,77 @@ function runAiTick() {
     if (!gameActive || currentMode !== 'VS Computer') return;
     let speed = getDropSpeed(true);
 
-    /* 블록이 맵 위면 먼저 한 칸 내려오기 */
-    if (aBlock.y < 0) {
-        aBlock.y++;
+    /* ── Extreme: AI 응답이 오면 즉시 회전+이동+하드드롭 (스페이스바 수준) ── */
+    if (currentDiff === 'Extreme') {
+        if (!aiReady) {
+            // 응답 대기 중: 짧은 간격으로 재확인 (최대 16ms 대기)
+            aiTimeoutId = setTimeout(runAiTick, 16);
+            return;
+        }
+        // 응답 도착 즉시: 회전/x 텔레포트 후 하드드롭
+        aBlock.rotation = aiTargetRot;
+        aBlock.x = aiTargetX;
+        // x가 충돌 시 조금 조정
+        let tries = 0;
+        while (checkCollide(aBlock, aField) && tries < 5) {
+            if (aBlock.x > 0) aBlock.x--; else aBlock.x++;
+            tries++;
+        }
+        // y가 화면 위에 있으면 0으로 보정
+        if (aBlock.y < 0) aBlock.y = 0;
+        // 하드드롭: 바닥까지 즉시 이동
+        while (!checkCollide(aBlock, aField)) aBlock.y++;
+        aBlock.y--;
         updateUiStats();
+        lockAiBlock();
         aiTimeoutId = setTimeout(runAiTick, speed);
         return;
     }
 
+    /* ── Hard: 이동할 때도 동시에 낙하 ── */
+    if (currentDiff === 'Hard') {
+        if (aBlock.y < 0) { aBlock.y++; updateUiStats(); aiTimeoutId = setTimeout(runAiTick, speed); return; }
+        if (!aiReady) {
+            aBlock.y++;
+            if (checkCollide(aBlock, aField)) { aBlock.y--; lockAiBlock(); }
+            updateUiStats(); aiTimeoutId = setTimeout(runAiTick, speed); return;
+        }
+        let needsMove = (aBlock.rotation !== aiTargetRot) || (aBlock.x !== aiTargetX);
+        if (needsMove) {
+            if (aBlock.rotation !== aiTargetRot) aBlock.rotation = (aBlock.rotation + 1) % SHAPES[aBlock.type].length;
+            else if (aBlock.x < aiTargetX) aBlock.x++;
+            else if (aBlock.x > aiTargetX) aBlock.x--;
+            // 이동하면서 동시에 낙하
+            aBlock.y++;
+            if (checkCollide(aBlock, aField)) { aBlock.y--; lockAiBlock(); updateUiStats(); aiTimeoutId = setTimeout(runAiTick, speed); return; }
+            updateUiStats(); aiTimeoutId = setTimeout(runAiTick, speed); return;
+        }
+        // 목표 도달 → 하드드롭
+        while (!checkCollide(aBlock, aField)) aBlock.y++;
+        aBlock.y--;
+        updateUiStats(); lockAiBlock(); aiTimeoutId = setTimeout(runAiTick, speed); return;
+    }
+
+    /* ── Normal / Easy: 이동하면서 낙하, 목표 도달 후 하드드롭 ── */
+    if (aBlock.y < 0) { aBlock.y++; updateUiStats(); aiTimeoutId = setTimeout(runAiTick, speed); return; }
+    if (!aiReady) {
+        aBlock.y++;
+        if (checkCollide(aBlock, aField)) { aBlock.y--; lockAiBlock(); }
+        updateUiStats(); aiTimeoutId = setTimeout(runAiTick, speed); return;
+    }
     let needsMove = (aBlock.rotation !== aiTargetRot) || (aBlock.x !== aiTargetX);
     if (needsMove) {
-        if (aBlock.rotation !== aiTargetRot) {
-            aBlock.rotation = (aBlock.rotation + 1) % SHAPES[aBlock.type].length;
-        } else if (aBlock.x < aiTargetX) { aBlock.x++; }
-        else if (aBlock.x > aiTargetX) { aBlock.x--; }
-
-        let dropOnMove = currentDiff === 'Easy' ? 0.3 : currentDiff === 'Normal' ? 0.6 : 0.9;
-        if (Math.random() < dropOnMove) {
-            aBlock.y++;
-            if (checkCollide(aBlock, aField)) {
-                aBlock.y--;
-                lockAiBlock();
-                updateUiStats();
-                aiTimeoutId = setTimeout(runAiTick, speed);
-                return;
-            }
-        }
-        updateUiStats();
-        aiTimeoutId = setTimeout(runAiTick, speed);
-        return;
+        if (aBlock.rotation !== aiTargetRot) aBlock.rotation = (aBlock.rotation + 1) % SHAPES[aBlock.type].length;
+        else if (aBlock.x < aiTargetX) aBlock.x++;
+        else if (aBlock.x > aiTargetX) aBlock.x--;
+        aBlock.y++;
+        if (checkCollide(aBlock, aField)) { aBlock.y--; lockAiBlock(); updateUiStats(); aiTimeoutId = setTimeout(runAiTick, speed); return; }
+        updateUiStats(); aiTimeoutId = setTimeout(runAiTick, speed); return;
     }
-
-    /* 목표 도달 → 난이도별 낙하 */
-    if (currentDiff === 'Hard' && Math.random() < 0.85) {
-        while (!checkCollide(aBlock, aField)) aBlock.y++;
-        aBlock.y--;
-        lockAiBlock();
-        updateUiStats();
-        aiTimeoutId = setTimeout(runAiTick, speed);
-        return;
-    }
-    if (currentDiff === 'Normal' && Math.random() < 0.5) {
-        while (!checkCollide(aBlock, aField)) aBlock.y++;
-        aBlock.y--;
-        lockAiBlock();
-        updateUiStats();
-        aiTimeoutId = setTimeout(runAiTick, speed);
-        return;
-    }
-
-    /* Easy / 확률 미달: 한 칸씩 낙하 */
-    aBlock.y++;
-    if (checkCollide(aBlock, aField)) { aBlock.y--; lockAiBlock(); }
-    updateUiStats();
-    aiTimeoutId = setTimeout(runAiTick, speed);
+    // 목표 도달 → 하드드롭
+    while (!checkCollide(aBlock, aField)) aBlock.y++;
+    aBlock.y--;
+    updateUiStats(); lockAiBlock(); aiTimeoutId = setTimeout(runAiTick, speed);
 }
 
 /* ===== 멀티플레이 ===== */
