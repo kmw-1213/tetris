@@ -39,7 +39,7 @@ WEIGHTS_BY_DIFF = {
         'holes': 20.0,
         'bumpiness': 3.5,
         'lines': -15.0,
-        'well_bonus': -3.0,    # 한쪽 구멍 유지 보너스
+        'well_bonus': -3.0,
     },
     'Hard': {
         'height': 9.0,
@@ -47,7 +47,7 @@ WEIGHTS_BY_DIFF = {
         'bumpiness': 4.5,
         'lines': -20.0,
         'well_bonus': -5.0,
-        'covered_holes': 8.0,  # 덮인 구멍 추가 패널티
+        'covered_holes': 8.0,
     },
     'Extreme': {
         'height': 30.0,        # 높이 쌓임을 극도로 꺼림 (자멸 방지)
@@ -55,7 +55,7 @@ WEIGHTS_BY_DIFF = {
         'bumpiness': 8.0,
         'lines': -40.0,
         'well_bonus': -10.0,
-        'covered_holes': 25.0, # 덮인 구멍 강한 패널티
+        'covered_holes': 25.0,
         'flat_bonus': -4.0,
     },
 }
@@ -76,13 +76,11 @@ def _column_metrics(board, weights):
             elif seen:
                 holes += 1
                 col_holes += 1
-        # 덮인 구멍: 위에 블록이 여러 칸 쌓인 구멍
         if col_holes > 0:
             covered_holes += col_holes * heights[j]
 
     bumpiness = sum(abs(heights[j] - heights[j + 1]) for j in range(COLUMNS - 1))
 
-    # well bonus: 한 열이 양쪽보다 낮으면 보너스 (I피스 내리기 좋은 구조)
     well_bonus = 0
     if 'well_bonus' in weights:
         for j in range(COLUMNS):
@@ -92,7 +90,6 @@ def _column_metrics(board, weights):
             if depth > 0:
                 well_bonus += depth
 
-    # flat bonus: 높이 표준편차가 낮을수록 보너스
     flat_bonus = 0
     if 'flat_bonus' in weights:
         avg = sum(heights) / COLUMNS
@@ -110,8 +107,12 @@ def evaluate_board(board, weights):
     """낮을수록 좋은 보드. 컴퓨터는 이 값을 최소화한다."""
     heights, holes, bumpiness, covered_holes, well_bonus, flat_bonus = _column_metrics(board, weights)
     lines = _count_full_lines(board)
+    max_height = max(heights)
+    avg_height = sum(heights) / COLUMNS
+
     score = (
-        max(heights) * weights['height']
+        max_height * weights['height']
+        + avg_height * weights['height'] * 0.5   # 평균 높이 패널티 (산 모양 방지)
         + holes * weights['holes']
         + bumpiness * weights['bumpiness']
         + lines * weights['lines']
@@ -122,6 +123,12 @@ def evaluate_board(board, weights):
         score += covered_holes * weights['covered_holes']
     if 'flat_bonus' in weights:
         score += flat_bonus * weights['flat_bonus']
+
+    # 위험 높이(12칸 이상) 초과 시 지수 패널티 — 자멸 방지
+    danger_threshold = 12
+    if max_height > danger_threshold:
+        score += (max_height - danger_threshold) ** 2.5 * weights['height'] * 2.0
+
     return score
 
 
@@ -166,12 +173,11 @@ def clear_full_lines(board):
 class ComputerPlayer:
     """VS COMPUTER 의 상대 컴퓨터. 난이도에 따라 실수 확률과 탐색 깊이가 달라진다."""
 
-    # (실수 확률, 룩어헤드 사용 여부)
     DIFFICULTY = {
-        'Easy':    (0.01, False),   # 구 Hard 수준
-        'Normal':  (0.003, True),   # 실수 매우 드물고 룩어헤드
-        'Hard':    (0.0005, True),  # 거의 실수 없음
-        'Extreme': (0.0, True),     # 절대 실수 없음
+        'Easy':    (0.01, False),
+        'Normal':  (0.003, True),
+        'Hard':    (0.0005, True),
+        'Extreme': (0.0, True),
     }
 
     def __init__(self, difficulty='Normal'):
@@ -195,7 +201,6 @@ class ComputerPlayer:
                 board1 = clear_full_lines(board1)
 
                 if self.lookahead and next_type:
-                    # 다음 블록까지 고려한 2-piece 룩어헤드
                     next_rots = SHAPES.get(next_type, [[0]])
                     min_next = float('inf')
                     for nr in range(len(next_rots)):
