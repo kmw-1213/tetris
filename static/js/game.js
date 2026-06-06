@@ -387,11 +387,16 @@ function runAiTick() {
             if (aBlock.x > 0) aBlock.x--; else aBlock.x++;
             tries++;
         }
-        // y가 화면 위에 있으면 0으로 보정
-        if (aBlock.y < 0) aBlock.y = 0;
+        // y를 맨 위(-3)부터 시작해서 충돌 없는 첫 위치 확보 후 하드드롭
+        aBlock.y = -3;
+        while (aBlock.y < 20 && checkCollide(aBlock, aField)) aBlock.y++;
+        // 착지 가능한 공간이 없으면(y가 이미 20 이상) AI 패배
+        if (aBlock.y >= 20) { endGame("AI DEFEATED!"); return; }
         // 하드드롭: 바닥까지 즉시 이동
         while (!checkCollide(aBlock, aField)) aBlock.y++;
         aBlock.y--;
+        // 착지 위치가 topOut 영역(row 0~1)이면 AI 패배
+        if (aBlock.y <= 1) { freezeBlock(aBlock, aField); endGame("AI DEFEATED!"); return; }
         updateUiStats();
         lockAiBlock();
         aiTimeoutId = setTimeout(runAiTick, speed);

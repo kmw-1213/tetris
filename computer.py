@@ -50,13 +50,13 @@ WEIGHTS_BY_DIFF = {
         'covered_holes': 8.0,  # 덮인 구멍 추가 패널티
     },
     'Extreme': {
-        'height': 12.0,
-        'holes': 40.0,
-        'bumpiness': 6.0,
-        'lines': -30.0,
-        'well_bonus': -8.0,
-        'covered_holes': 15.0,
-        'flat_bonus': -2.0,    # 평탄한 표면 보너스
+        'height': 30.0,        # 높이 쌓임을 극도로 꺼림 (자멸 방지)
+        'holes': 60.0,         # 구멍 페널티 강화
+        'bumpiness': 8.0,
+        'lines': -40.0,
+        'well_bonus': -10.0,
+        'covered_holes': 25.0, # 덮인 구멍 강한 패널티
+        'flat_bonus': -4.0,
     },
 }
 
