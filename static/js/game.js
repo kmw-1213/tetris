@@ -273,6 +273,15 @@ function sendGarbageLines(targetField, count) {
         g[Math.floor(Math.random() * 10)] = 0;
         targetField.push(g);
     }
+    // 플레이어 필드에 garbage가 들어왔을 때 낙하 중인 블록이 파묻히지 않도록 y 보정
+    if (targetField === pField && pBlock) {
+        pBlock.y -= count;
+        // 보정 후에도 충돌이면(이미 꽉 찼으면) 강제 lock
+        if (checkCollide(pBlock, pField)) {
+            clearTimeout(pTimeoutId);
+            lockPlayerBlock(false);
+        }
+    }
 }
 
 function checkDangerZone() {
