@@ -1,14 +1,4 @@
-"""computer.py: VS COMPUTER 모드의 컴퓨터 플레이어 두뇌 로직 (순수 파이썬)
-
-휴리스틱 평가(높이/구멍/울퉁불퉁함)를 기반으로 모든 회전 x 모든 가로 위치를
-시뮬레이션하여 가장 점수가 낮은(=안정적인) 착지 지점을 선택한다.
-
-난이도별 실수 확률:
-  Easy    : 기존 Hard 수준 (실수 1%)
-  Normal  : 실수 0.3%, 2-piece 룩어헤드 적용
-  Hard    : 실수 0.05%, 2-piece 룩어헤드 + 공격적 평가
-  Extreme : 실수 0%, 2-piece 룩어헤드 + 최강 평가 가중치
-"""
+"""computer.py: VS COMPUTER 모드의 컴퓨터 플레이어 두뇌 로직 (순수 파이썬)"""
 import copy
 import random
 
@@ -24,9 +14,6 @@ SHAPES = {
     'L': [[2, 4, 5, 6], [1, 5, 9, 10], [4, 5, 6, 8], [0, 1, 5, 9]],
 }
 
-ALL_PIECE_TYPES = list(SHAPES.keys())
-
-# 난이도별 평가 가중치
 WEIGHTS_BY_DIFF = {
     'Easy': {
         'height': 6.0,
@@ -50,8 +37,8 @@ WEIGHTS_BY_DIFF = {
         'covered_holes': 8.0,
     },
     'Extreme': {
-        'height': 30.0,        # 높이 쌓임을 극도로 꺼림 (자멸 방지)
-        'holes': 60.0,         # 구멍 페널티 강화
+        'height': 30.0,
+        'holes': 60.0,
         'bumpiness': 8.0,
         'lines': -40.0,
         'well_bonus': -10.0,
@@ -59,6 +46,15 @@ WEIGHTS_BY_DIFF = {
         'flat_bonus': -4.0,
     },
 }
+
+
+def _get_cells(shape, x, y):
+    """shape 인덱스 리스트를 실제 (row, col) 좌표로 변환"""
+    cells = []
+    for idx in shape:
+        i, j = divmod(idx, 4)
+        cells.append((y + i, x + j))
+    return cells
 
 
 def _column_metrics(board, weights):
@@ -104,7 +100,6 @@ def _count_full_lines(board):
 
 
 def evaluate_board(board, weights):
-    """낮을수록 좋은 보드. 컴퓨터는 이 값을 최소화한다."""
     heights, holes, bumpiness, covered_holes, well_bonus, flat_bonus = _column_metrics(board, weights)
     lines = _count_full_lines(board)
     max_height = max(heights)
@@ -112,7 +107,7 @@ def evaluate_board(board, weights):
 
     score = (
         max_height * weights['height']
-        + avg_height * weights['height'] * 0.5   # 평균 높이 패널티 (산 모양 방지)
+        + avg_height * weights['height'] * 0.5
         + holes * weights['holes']
         + bumpiness * weights['bumpiness']
         + lines * weights['lines']
@@ -124,7 +119,6 @@ def evaluate_board(board, weights):
     if 'flat_bonus' in weights:
         score += flat_bonus * weights['flat_bonus']
 
-    # 위험 높이(12칸 이상) 초과 시 지수 패널티 — 자멸 방지
     danger_threshold = 12
     if max_height > danger_threshold:
         score += (max_height - danger_threshold) ** 2.5 * weights['height'] * 2.0
@@ -133,37 +127,67 @@ def evaluate_board(board, weights):
 
 
 def simulate_drop(field, shape, x):
-    """회전(shape)과 가로 위치 x로 블록을 하드드롭한 결과 보드 반환. 불가하면 None."""
-    y = 0
-    for i in range(4):
-        for j in range(4):
-            if i * 4 + j in shape:
-                if x + j < 0 or x + j >= COLUMNS or y + i >= ROWS:
-                    return None
-                if field[y + i][x + j] != 0:
-                    return None
+    """shape을 x 위치에 하드드롭한 결과 보드 반환. 불가하면 None.
+    블록은 y=-3(화면 위)부터 시작해 실제 생성 방식과 동일하게 처리.
+    """
+    # 블록 셀의 상대 (i, j) 추출
+    cells_rel = [(idx // 4, idx % 4) for idx in shape]
+
+    # 열 범위 검사
+    for i, j in cells_rel:
+        if x + j < 0 or x + j >= COLUMNS:
+            return None
+
+    # y=-3부터 시작해서 충돌 없는 첫 위치 찾기 (실제 스폰과 동일)
+    y = -3
+    # 먼저 맨 위에서 충돌 없는 위치까지 내려옴
+    while y < ROWS:
+        collide = False
+        for i, j in cells_rel:
+            r, c = y + i, x + j
+            if r < 0:
+                continue
+            if r >= ROWS or field[r][c] != 0:
+                collide = True
+                break
+        if not collide:
+            break
+        y += 1
+
+    if y >= ROWS:
+        return None  # 놓을 공간 없음
+
+    # 하드드롭: 바닥까지 내려감
     while True:
         ny = y + 1
         hit = False
-        for i in range(4):
-            for j in range(4):
-                if i * 4 + j in shape:
-                    if ny + i >= ROWS or field[ny + i][x + j] != 0:
-                        hit = True
+        for i, j in cells_rel:
+            r, c = ny + i, x + j
+            if r >= ROWS or (r >= 0 and field[r][c] != 0):
+                hit = True
+                break
         if hit:
             break
         y = ny
+
+    # 착지 위치가 전부 화면 위면 무효
+    visible = any((y + i) >= 0 for i, j in cells_rel)
+    if not visible:
+        return None
+
     board = copy.deepcopy(field)
-    for i in range(4):
-        for j in range(4):
-            if i * 4 + j in shape:
-                if 0 <= y + i < ROWS and 0 <= x + j < COLUMNS:
-                    board[y + i][x + j] = 1
+    for i, j in cells_rel:
+        r, c = y + i, x + j
+        if 0 <= r < ROWS and 0 <= c < COLUMNS:
+            board[r][c] = 1
+        elif r < 0:
+            # 화면 위에 블록이 걸쳐있으면 topOut → 무효
+            return None
+
     return board
 
 
 def clear_full_lines(board):
-    """보드에서 꽉 찬 라인을 제거한 새 보드 반환."""
     new_board = [row for row in board if not all(c != 0 for c in row)]
     cleared = ROWS - len(new_board)
     new_board = [[0] * COLUMNS for _ in range(cleared)] + new_board
@@ -171,13 +195,11 @@ def clear_full_lines(board):
 
 
 class ComputerPlayer:
-    """VS COMPUTER 의 상대 컴퓨터. 난이도에 따라 실수 확률과 탐색 깊이가 달라진다."""
-
     DIFFICULTY = {
-        'Easy':    (0.01, False),
-        'Normal':  (0.003, True),
+        'Easy':    (0.01,   False),
+        'Normal':  (0.003,  True),
         'Hard':    (0.0005, True),
-        'Extreme': (0.0, True),
+        'Extreme': (0.0,    True),
     }
 
     def __init__(self, difficulty='Normal'):
@@ -187,7 +209,6 @@ class ComputerPlayer:
         self.weights = WEIGHTS_BY_DIFF.get(difficulty, WEIGHTS_BY_DIFF['Normal'])
 
     def best_move(self, field, block_type, next_type=None):
-        """가장 좋은 (target_x, target_rot) 결정. Normal+ 는 next_type 룩어헤드."""
         rotations = SHAPES.get(block_type, [[0]])
         best_score = float('inf')
         best_x, best_rot = 3, 0
@@ -213,7 +234,7 @@ class ComputerPlayer:
                             s = evaluate_board(board2, self.weights)
                             if s < min_next:
                                 min_next = s
-                    score = min_next
+                    score = min_next if min_next < float('inf') else evaluate_board(board1, self.weights)
                 else:
                     score = evaluate_board(board1, self.weights)
 
@@ -223,7 +244,6 @@ class ComputerPlayer:
         return best_x, best_rot
 
     def decide(self, field, block_type, next_type=None, error_chance=None):
-        """실수 확률을 반영해 최종 수를 반환."""
         ec = self.error_chance if error_chance is None else error_chance
         if ec > 0 and random.random() < ec:
             return {'target_x': random.randint(1, 6),

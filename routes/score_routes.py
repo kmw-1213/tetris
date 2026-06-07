@@ -1,6 +1,6 @@
 """score_routes.py: 점수 저장 및 리더보드 API"""
 from flask import Blueprint, request, jsonify
-from db.database import get_connection
+from db.database import get_connection, execute, USE_PG
 
 score_bp = Blueprint('score', __name__)
 
@@ -12,12 +12,12 @@ def save_score():
     mode       = data.get('mode', 'Unknown')
     score      = int(data.get('score', 0))
     lines      = int(data.get('lines', 0))
-    clear_time = data.get('clear_time')   # 초 단위 정수 or None
+    clear_time = data.get('clear_time')
     if clear_time is not None:
         clear_time = int(clear_time)
 
     conn = get_connection()
-    conn.execute(
+    execute(conn,
         "INSERT INTO scores (name, mode, score, lines, clear_time) VALUES (?, ?, ?, ?, ?)",
         (name, mode, score, lines, clear_time),
     )
@@ -31,22 +31,19 @@ def leaderboard():
     mode = request.args.get('mode')
     conn = get_connection()
 
-    # Sprint/VS Computer 등 clear_time이 있는 모드는 시간 오름차순 우선
-    time_modes = ('Sprint', 'VS Computer (Easy)', 'VS Computer (Normal)', 'VS Computer (Hard)', 'VS Computer (Extreme)')
-    if mode in time_modes:
-        order = "clear_time ASC, score DESC"
-    else:
-        order = "score DESC"
+    time_modes = ('Sprint', 'VS Computer (Easy)', 'VS Computer (Normal)',
+                  'VS Computer (Hard)', 'VS Computer (Extreme)')
+    order = "clear_time ASC, score DESC" if mode in time_modes else "score DESC"
 
     if mode:
-        rows = conn.execute(
+        cur = execute(conn,
             f"SELECT name, mode, score, lines, clear_time, created FROM scores "
-            f"WHERE mode = ? ORDER BY {order} LIMIT 20", (mode,)
-        ).fetchall()
+            f"WHERE mode = ? ORDER BY {order} LIMIT 20", (mode,))
     else:
-        rows = conn.execute(
+        cur = execute(conn,
             f"SELECT name, mode, score, lines, clear_time, created FROM scores "
-            f"ORDER BY score DESC LIMIT 20"
-        ).fetchall()
+            f"ORDER BY score DESC LIMIT 20")
+
+    rows = cur.fetchall()
     conn.close()
     return jsonify([dict(r) for r in rows])

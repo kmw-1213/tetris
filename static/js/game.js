@@ -194,8 +194,8 @@ function initGame() {
     aiTargetX = 3; aiTargetRot = 0; aiReady = false;
     pEffects = []; aEffects = [];
     pBag = []; aBag = [];
-    gameActive = true;
-    document.getElementById('main-content').classList.remove('danger-alert');
+    gameActive = true; isPaused = false;
+    document.getElementById('pause-overlay').style.display = 'none';
 
     if (currentMode !== 'Multi') rngState = (Math.random() * 2 ** 31) | 0;
     pNextQueue = []; fillQueue(pNextQueue, pBag);
@@ -220,8 +220,17 @@ function initGame() {
         aNextQueue = []; fillQueue(aNextQueue, aBag);
         aBlock = aNextQueue.shift(); fillQueue(aNextQueue, aBag);
         askAIBackend();
-        runAiTick();
-        /* VS Computer: 경과 타이머 */
+        if (currentDiff === 'Extreme') {
+            // Extreme: lockAiBlock의 타이머 루프로 동작하므로 첫 드롭만 트리거
+            let waitAndDrop = () => {
+                if (!gameActive || isPaused) return;
+                if (!aiReady) { aiTimeoutId = setTimeout(waitAndDrop, 16); return; }
+                runAiTick();
+            };
+            aiTimeoutId = setTimeout(waitAndDrop, getDropSpeed(true));
+        } else {
+            runAiTick();
+        }        /* VS Computer: 경과 타이머 */
         document.getElementById('ingame-timer').style.display = 'flex';
         document.getElementById('ingame-timer-label').innerText = 'TIME';
         startElapsedTimer();
@@ -331,7 +340,7 @@ function lockPlayerBlock(isHardDrop = false) {
     let cleared = clearLines(pField, true);
     if (cleared > 0) {
         pLines += cleared;
-        pScore += cleared * cleared * 100;
+        pScore += [0, 100, 300, 500, 800][cleared] || 800;
         /* Sprint/Blitz 는 레벨 고정 */
         if (currentMode !== 'Blitz' && currentMode !== 'Sprint') {
             pLevel = Math.floor(pLines / 10) + 1;
@@ -352,7 +361,7 @@ function lockPlayerBlock(isHardDrop = false) {
 }
 
 function runPlayerTick() {
-    if (!gameActive) return;
+    if (!gameActive || isPaused) return;
     pBlock.y++;
     if (checkCollide(pBlock, pField)) { pBlock.y--; lockPlayerBlock(false); return; }
     updateUiStats();
@@ -367,48 +376,46 @@ function lockAiBlock() {
     if (isTopOut(aField)) { endGame("AI DEFEATED!"); return; }
     let cleared = clearLines(aField, false);
     if (cleared > 0) {
-        aLines += cleared; aScore += cleared * cleared * 100;
+        aLines += cleared; aScore += [0, 100, 300, 500, 800][cleared] || 800;
         sendGarbageLines(pField, cleared); checkDangerZone();
     }
     aBlock = aNextQueue.shift(); fillQueue(aNextQueue, aBag);
     if (checkCollide(aBlock, aField)) { endGame("AI DEFEATED!"); return; }
     aiReady = false;
     askAIBackend();
+    if (currentDiff !== 'Extreme') return; // 다른 난이도는 runAiTick이 이미 루프 중
+    // Extreme: speed만큼 기다린 뒤 응답 확인 후 드롭
+    let waitAndDrop = () => {
+        if (!gameActive || isPaused) return;
+        if (!aiReady) { aiTimeoutId = setTimeout(waitAndDrop, 16); return; }
+        runAiTick();
+    };
+    aiTimeoutId = setTimeout(waitAndDrop, getDropSpeed(true));
 }
 
 function runAiTick() {
-    if (!gameActive || currentMode !== 'VS Computer') return;
+    if (!gameActive || currentMode !== 'VS Computer' || isPaused) return;
     let speed = getDropSpeed(true);
 
-    /* ── Extreme: AI 응답이 오면 즉시 회전+이동+하드드롭 (스페이스바 수준) ── */
+    /* ── Extreme: 즉시 하드드롭 (lockAiBlock의 타이머가 속도 조절) ── */
     if (currentDiff === 'Extreme') {
-        if (!aiReady) {
-            // 응답 대기 중: 짧은 간격으로 재확인 (최대 16ms 대기)
-            aiTimeoutId = setTimeout(runAiTick, 16);
-            return;
-        }
-        // 응답 도착 즉시: 회전/x 텔레포트 후 하드드롭
         aBlock.rotation = aiTargetRot;
         aBlock.x = aiTargetX;
-        // x가 충돌 시 조금 조정
+        // x 충돌 시 조정
         let tries = 0;
         while (checkCollide(aBlock, aField) && tries < 5) {
             if (aBlock.x > 0) aBlock.x--; else aBlock.x++;
             tries++;
         }
-        // y를 맨 위(-3)부터 시작해서 충돌 없는 첫 위치 확보 후 하드드롭
+        // y=-3부터 충돌 없는 첫 위치 찾기
         aBlock.y = -3;
         while (aBlock.y < 20 && checkCollide(aBlock, aField)) aBlock.y++;
-        // 착지 가능한 공간이 없으면(y가 이미 20 이상) AI 패배
         if (aBlock.y >= 20) { endGame("AI DEFEATED!"); return; }
-        // 하드드롭: 바닥까지 즉시 이동
+        // 하드드롭
         while (!checkCollide(aBlock, aField)) aBlock.y++;
         aBlock.y--;
-        // 착지 위치가 topOut 영역(row 0~1)이면 AI 패배
-        if (aBlock.y <= 1) { freezeBlock(aBlock, aField); endGame("AI DEFEATED!"); return; }
         updateUiStats();
-        lockAiBlock();
-        aiTimeoutId = setTimeout(runAiTick, speed);
+        lockAiBlock(); // lockAiBlock 내부에서 다음 타이머 설정
         return;
     }
 
@@ -658,8 +665,15 @@ function renderLoop() {
 }
 
 /* ===== 키 입력 ===== */
+let isPaused = false;
+
 window.addEventListener('keydown', e => {
-    if(!gameActive) return;
+    // P: 일시정지 / 재개 (게임 중일 때만)
+    if ((e.key === 'p' || e.key === 'P') && gameActive) {
+        togglePause();
+        return;
+    }
+    if(!gameActive || isPaused) return;
     if(e.key==='ArrowLeft'){ pBlock.x--; if(checkCollide(pBlock,pField)) pBlock.x++; }
     if(e.key==='ArrowRight'){ pBlock.x++; if(checkCollide(pBlock,pField)) pBlock.x--; }
     if(e.key==='ArrowDown'){
@@ -679,4 +693,70 @@ window.addEventListener('keydown', e => {
     }
 });
 
+function togglePause() {
+    if (!gameActive) return;
+    isPaused = !isPaused;
+    if (isPaused) {
+        // 모든 타이머 정지
+        clearTimeout(pTimeoutId);
+        clearTimeout(aiTimeoutId);
+        clearInterval(timerInterval);
+        clearInterval(elapsedInterval);
+        // 일시정지 오버레이 표시
+        document.getElementById('pause-overlay').style.display = 'flex';
+    } else {
+        // 오버레이 숨기고 게임 재개
+        document.getElementById('pause-overlay').style.display = 'none';
+        // 타이머 재개
+        runPlayerTick();
+        if (currentMode === 'VS Computer') {
+            if (currentDiff === 'Extreme') {
+                askAIBackend();
+                let waitAndDrop = () => {
+                    if (!gameActive || isPaused) return;
+                    if (!aiReady) { aiTimeoutId = setTimeout(waitAndDrop, 16); return; }
+                    runAiTick();
+                };
+                aiTimeoutId = setTimeout(waitAndDrop, getDropSpeed(true));
+            } else {
+                runAiTick();
+            }
+        }
+        // Blitz 타이머 재개
+        if (currentMode === 'Blitz') {
+            timerInterval = setInterval(() => {
+                blitzTimer--;
+                document.getElementById('timer-val').innerText = blitzTimer;
+                if (blitzTimer <= 0) { clearInterval(timerInterval); endGame('BLITZ END'); }
+            }, 1000);
+        }
+        // 경과 타이머 재개
+        if (currentMode === 'VS Computer' || currentMode === 'Sprint') {
+            elapsedInterval = setInterval(() => {
+                elapsedSeconds++;
+                document.getElementById('elapsed-val').innerText = fmtTime(elapsedSeconds);
+            }, 1000);
+        }
+    }
+}
+
 openModeSelect();
+
+/* ===== 설명서 ===== */
+function showManual() {
+    document.getElementById('manual-modal').style.display = 'flex';
+    switchManualTab('controls');
+    // 탭 초기화
+    document.querySelectorAll('#manual-modal .lb-tab').forEach((el, i) => {
+        el.classList.toggle('active', i === 0);
+    });
+}
+function switchManualTab(tab, e) {
+    ['controls','modes','speed'].forEach(t => {
+        document.getElementById('manual-' + t).style.display = (t === tab) ? 'block' : 'none';
+    });
+    if (e) {
+        document.querySelectorAll('#manual-modal .lb-tab').forEach(el => el.classList.remove('active'));
+        e.target.classList.add('active');
+    }
+}

@@ -187,3 +187,27 @@ canvas { background: #030407; border-radius: 12px; border: 1px solid rgba(255,25
 
 /* 게임오버 Victory 색상 */
 .over-icon { font-size: 52px; text-shadow: 0 0 25px currentColor; margin-bottom: 14px; }
+/* ── 설명서 모달 ── */
+.manual-box { width: 520px; max-height: 80vh; overflow-y: auto; }
+.manual-section { animation: fadeIn 0.2s ease; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+.manual-group { margin-bottom: 22px; }
+.manual-title { font-size: 13px; font-weight: 800; color: var(--neon-blue); letter-spacing: 1px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.manual-desc { font-size: 13px; color: #aab; line-height: 1.7; margin: 0 0 8px; }
+.manual-row { display: flex; align-items: center; gap: 12px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 13px; color: #ccd; }
+.manual-row:last-child { border-bottom: none; }
+.key-badge { background: rgba(0,245,255,0.12); border: 1px solid rgba(0,245,255,0.3); color: var(--neon-blue); font-weight: 800; font-family: monospace; padding: 3px 10px; border-radius: 5px; min-width: 70px; text-align: center; font-size: 12px; white-space: nowrap; }
+.manual-badge { padding: 3px 10px; border-radius: 5px; font-size: 11px; font-weight: 800; min-width: 70px; text-align: center; }
+.manual-badge.easy    { background: rgba(0,255,136,0.15); color: var(--neon-green); }
+.manual-badge.normal  { background: rgba(0,245,255,0.15); color: var(--neon-blue); }
+.manual-badge.hard    { background: rgba(255,140,0,0.15); color: #ff8c00; }
+.manual-badge.extreme { background: rgba(255,56,56,0.15); color: var(--neon-red); }
+
+/* 속도 테이블 */
+.speed-table { border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; overflow: hidden; }
+.speed-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 8px 14px; font-size: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); color: #ccd; }
+.speed-row:last-child { border-bottom: none; }
+.speed-row.header { background: rgba(255,255,255,0.04); color: var(--text-muted); font-weight: 700; font-size: 11px; letter-spacing: 0.5px; }
+.spd { font-weight: 800; font-family: monospace; }
+.s1 { color: #8af; } .s2 { color: #6cf; } .s3 { color: var(--neon-blue); }
+.s4 { color: #fa0; } .s5 { color: #f60; } .s6 { color: var(--neon-red); }
