@@ -1,4 +1,11 @@
-"""computer.py: VS COMPUTER 모드의 컴퓨터 플레이어 두뇌 로직 (순수 파이썬)"""
+"""computer.py: VS COMPUTER 모드의 컴퓨터 플레이어 두뇌 로직
+
+Extreme 난이도:
+  - 항상 생존 최우선
+  - 구멍·높이를 극단적으로 회피
+  - 라인 클리어가 최고 우선순위
+  - 고득점보다 오래 버티는 것이 목표
+"""
 import copy
 import random
 
@@ -14,7 +21,7 @@ SHAPES = {
     'L': [[2, 4, 5, 6], [1, 5, 9, 10], [4, 5, 6, 8], [0, 1, 5, 9]],
 }
 
-# 일반 상황 가중치
+# 난이도별 가중치 (Easy/Normal/Hard)
 WEIGHTS_BY_DIFF = {
     'Easy': {
         'height': 6.0, 'holes': 14.0, 'bumpiness': 2.5, 'lines': -12.0,
@@ -27,25 +34,17 @@ WEIGHTS_BY_DIFF = {
         'height': 9.0, 'holes': 28.0, 'bumpiness': 4.5, 'lines': -20.0,
         'well_bonus': -5.0, 'covered_holes': 8.0,
     },
-    'Extreme': {
-        'height': 30.0, 'holes': 60.0, 'bumpiness': 8.0, 'lines': -40.0,
-        'well_bonus': -10.0, 'covered_holes': 25.0, 'flat_bonus': -4.0,
-    },
 }
 
-# 맵 절반(10줄) 이상 찼을 때 생존 위주 가중치
-SURVIVAL_WEIGHTS = {
-    'Extreme': {
-        # 높이·구멍 패널티를 극단적으로 올리고
-        # 라인 클리어를 최우선으로
-        'height':        80.0,
-        'holes':        120.0,
-        'bumpiness':     15.0,
-        'lines':        -120.0,   # 라인 클리어가 최우선
-        'well_bonus':   -20.0,    # 한쪽 칸 비워두기 유지
-        'covered_holes': 60.0,
-        'flat_bonus':   -10.0,
-    },
+# Extreme: 생존 전용 가중치 (항상 적용, 상황 무관)
+EXTREME_WEIGHTS = {
+    'height':        50.0,   # 높이 쌓임 강하게 회피
+    'holes':        100.0,   # 구멍은 절대 만들지 않음
+    'bumpiness':     12.0,   # 울퉁불퉁함 회피
+    'lines':       -200.0,   # 라인 클리어가 압도적 최우선
+    'well_bonus':   -15.0,   # 한쪽 칸 비워두기(I블록용 우물)
+    'covered_holes': 50.0,   # 덮인 구멍 강한 패널티
+    'flat_bonus':   -8.0,    # 평탄한 표면 보너스
 }
 
 
@@ -92,7 +91,6 @@ def _count_full_lines(board):
 
 
 def _max_height(field):
-    """현재 필드의 최고 높이(쌓인 줄 수) 반환"""
     for i in range(ROWS):
         if any(cell != 0 for cell in field[i]):
             return ROWS - i
@@ -107,7 +105,7 @@ def evaluate_board(board, weights):
 
     score = (
         max_height * weights['height']
-        + avg_height * weights['height'] * 0.5
+        + avg_height * weights['height'] * 0.4
         + holes     * weights['holes']
         + bumpiness * weights['bumpiness']
         + lines     * weights['lines']
@@ -116,10 +114,10 @@ def evaluate_board(board, weights):
     if 'covered_holes' in weights: score += covered_holes * weights['covered_holes']
     if 'flat_bonus'    in weights: score += flat_bonus    * weights['flat_bonus']
 
-    # 위험 높이 초과 시 지수 패널티
-    danger = 12
+    # 위험 높이(10칸) 초과 시 지수 패널티
+    danger = 10
     if max_height > danger:
-        score += (max_height - danger) ** 2.5 * weights['height'] * 2.0
+        score += (max_height - danger) ** 3.0 * weights['height'] * 3.0
 
     return score
 
@@ -131,6 +129,7 @@ def simulate_drop(field, shape, x):
         if x + j < 0 or x + j >= COLUMNS:
             return None
 
+    # y=-3부터 시작 (실제 스폰과 동일)
     y = -3
     while y < ROWS:
         collide = False
@@ -170,7 +169,7 @@ def simulate_drop(field, shape, x):
         if 0 <= r < ROWS and 0 <= c < COLUMNS:
             board[r][c] = 1
         elif r < 0:
-            return None  # topOut → 무효
+            return None  # topOut 위치 → 무효
 
     return board
 
@@ -190,29 +189,20 @@ class ComputerPlayer:
         'Extreme': (0.0,    True),
     }
 
-    # 생존 모드 전환 높이 기준 (칸)
-    SURVIVAL_THRESHOLD = 10  # 20칸 중 10칸 = 절반
-
     def __init__(self, difficulty='Normal'):
-        self.difficulty  = difficulty
+        self.difficulty    = difficulty
         ec, self.lookahead = self.DIFFICULTY.get(difficulty, (0.003, True))
         self.error_chance  = ec
-        self.weights       = WEIGHTS_BY_DIFF.get(difficulty, WEIGHTS_BY_DIFF['Normal'])
-
-    def _pick_weights(self, field):
-        """현재 필드 높이에 따라 가중치 선택 (Extreme만 생존 모드 전환)"""
-        if self.difficulty == 'Extreme':
-            h = _max_height(field)
-            if h >= self.SURVIVAL_THRESHOLD:
-                return SURVIVAL_WEIGHTS['Extreme']
-        return self.weights
+        if difficulty == 'Extreme':
+            self.weights = EXTREME_WEIGHTS
+        else:
+            self.weights = WEIGHTS_BY_DIFF.get(difficulty, WEIGHTS_BY_DIFF['Normal'])
 
     def best_move(self, field, block_type, next_type=None):
         rotations  = SHAPES.get(block_type, [[0]])
         best_score = float('inf')
         best_x, best_rot = 3, 0
-
-        weights = self._pick_weights(field)
+        w = self.weights
 
         for rot in range(len(rotations)):
             shape = rotations[rot]
@@ -222,12 +212,9 @@ class ComputerPlayer:
                     continue
                 board1 = clear_full_lines(board1)
 
-                # 다음 블록까지 룩어헤드 (생존 모드에서도 유지)
                 if self.lookahead and next_type:
                     next_rots = SHAPES.get(next_type, [[0]])
                     min_next  = float('inf')
-                    # 생존 모드일 때 다음 블록 평가도 생존 가중치로
-                    w2 = self._pick_weights(board1)
                     for nr in range(len(next_rots)):
                         nshape = next_rots[nr]
                         for nx in range(-2, COLUMNS):
@@ -235,12 +222,12 @@ class ComputerPlayer:
                             if board2 is None:
                                 continue
                             board2 = clear_full_lines(board2)
-                            s = evaluate_board(board2, w2)
+                            s = evaluate_board(board2, w)
                             if s < min_next:
                                 min_next = s
-                    score = min_next if min_next < float('inf') else evaluate_board(board1, weights)
+                    score = min_next if min_next < float('inf') else evaluate_board(board1, w)
                 else:
-                    score = evaluate_board(board1, weights)
+                    score = evaluate_board(board1, w)
 
                 if score < best_score:
                     best_score, best_x, best_rot = score, x, rot

@@ -282,13 +282,13 @@ function sendGarbageLines(targetField, count) {
         g[Math.floor(Math.random() * 10)] = 0;
         targetField.push(g);
     }
-    // 플레이어 필드에 garbage가 들어왔을 때 낙하 중인 블록이 파묻히지 않도록 y 보정
     if (targetField === pField && pBlock) {
         pBlock.y -= count;
-        // 보정 후에도 충돌이면(이미 꽉 찼으면) 강제 lock
-        if (checkCollide(pBlock, pField)) {
+        updateUiStats();
+        // row 0이 꽉 찼을 때만 즉시 게임오버 (일부만 찼으면 다음 tick에서 처리)
+        if (isGarbageTopOut(targetField)) {
             clearTimeout(pTimeoutId);
-            lockPlayerBlock(false);
+            setTimeout(() => { if (gameActive) endGame("GAME OVER"); }, 300);
         }
     }
 }
@@ -300,7 +300,14 @@ function checkDangerZone() {
 }
 
 function isTopOut(field) {
+    // 새 블록 스폰 영역(row 0~1)에 블록이 하나라도 있으면 게임오버
     return field[0].some(c => c !== 0) || field[1].some(c => c !== 0);
+}
+
+function isGarbageTopOut(field) {
+    // garbage 삽입 직후 판정: row 0이 완전히 꽉 찼을 때만 즉시 판정
+    // (일부만 찼으면 다음 lockPlayerBlock의 isTopOut에서 처리)
+    return field[0].every(c => c !== 0);
 }
 
 /* ===== 낙하 속도 =====
@@ -332,10 +339,10 @@ function getDropSpeed(isAi) {
 function lockPlayerBlock(isHardDrop = false) {
     if (!gameActive) return;
     clearTimeout(pTimeoutId);
+    // 블록이 y <= 0에 착지했으면 게임오버
+    if (pBlock.y <= 0) { freezeBlock(pBlock, pField); endGame("GAME OVER"); return; }
     freezeBlock(pBlock, pField);
     if (isHardDrop) triggerHardDropEffect(pBlock, pEffects);
-
-    if (isTopOut(pField)) { endGame("GAME OVER"); return; }
 
     let cleared = clearLines(pField, true);
     if (cleared > 0) {
@@ -372,6 +379,7 @@ function runPlayerTick() {
 
 function lockAiBlock() {
     if (!gameActive) return;
+    if (aBlock.y <= 0) { freezeBlock(aBlock, aField); endGame("AI DEFEATED!"); return; }
     freezeBlock(aBlock, aField);
     if (isTopOut(aField)) { endGame("AI DEFEATED!"); return; }
     let cleared = clearLines(aField, false);
@@ -380,11 +388,12 @@ function lockAiBlock() {
         sendGarbageLines(pField, cleared); checkDangerZone();
     }
     aBlock = aNextQueue.shift(); fillQueue(aNextQueue, aBag);
-    if (checkCollide(aBlock, aField)) { endGame("AI DEFEATED!"); return; }
+    // 스폰 직후 checkCollide는 y=-3이라 맨 위 한 줄에 블록이 있어도 충돌로 오판정함
+    // isTopOut(row 0~1에 블록 있는지)으로만 게임오버 판정
+    if (isTopOut(aField)) { endGame("AI DEFEATED!"); return; }
     aiReady = false;
     askAIBackend();
-    if (currentDiff !== 'Extreme') return; // 다른 난이도는 runAiTick이 이미 루프 중
-    // Extreme: speed만큼 기다린 뒤 응답 확인 후 드롭
+    if (currentDiff !== 'Extreme') return;
     let waitAndDrop = () => {
         if (!gameActive || isPaused) return;
         if (!aiReady) { aiTimeoutId = setTimeout(waitAndDrop, 16); return; }
